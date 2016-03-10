@@ -55,7 +55,7 @@ class coolqBot():
         self.listener.setMessageHandlers(self.messageHandlers)
 
     def send(self, sendMessage):
-        self.sock.send(sendMessage.destinationType + " " + str(sendMessage.destinationID) + " " + quote(sendMessage.content))
+        self.sock.send(sendMessage.destinationType + " " + str(sendMessage.destinationID) + " " + quote(sendMessage.content.encode('utf-8')))
         return 0
 
     def listenerStarter(self):
