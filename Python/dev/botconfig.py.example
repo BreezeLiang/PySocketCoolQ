@@ -1,0 +1,9 @@
+# coding: UTF-8
+# EDIT THIS FILE TO FIT YOUR USAGE
+# RENAME IT TO　botconfig.py
+
+
+class botconfig():
+    telegramToken = "123456789:AAabcdef4VMp7rsdfkelskdfkslevYhbQs"
+    qqGroupID = 112345672
+    telegramGroupID = -1123012345672
