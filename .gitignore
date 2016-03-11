@@ -3,6 +3,7 @@
 Python/dev/botconfig.py
 libirc.py
 *.bak
+botconfig.py
 ### Windows template
 # Windows image file caches
 Thumbs.db
