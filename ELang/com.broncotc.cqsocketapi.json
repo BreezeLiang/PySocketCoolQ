@@ -3,7 +3,7 @@
     "apiver":9,
     "appid":"com.broncotc.cqsocketapi",
     "name":"Socket接口",
-    "version":"0.1.1",
+    "version":"0.1.3",
     "version_id":1,
     "author":"BroncoTc",
     "description":"基于Socket为酷Q提供泛插件支持",

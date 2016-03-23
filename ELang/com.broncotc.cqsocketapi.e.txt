@@ -1,0 +1,362 @@
+.版本 2
+.支持库 sock
+.支持库 EThread
+
+.程序集 CQ应用
+
+.子程序 _启动子程序, 整数型, , //本函数【禁止】处理其他任何代码，请不要改动本函数
+
+临子程序 ()
+' 本函数【禁止】处理其他任何代码，以免发生异常情况。如需执行初始化代码请在Startup事件中执行（Type=1001）。
+返回 (0)
+
+.子程序 临子程序
+
+' 本函数仅在易语言调试时会被运行。
+返回 ()
+' 可以在这里执行一些测试命令，便于应用测试。
+
+
+.子程序 dataDropper, 整数型, 公开
+.参数 drop, 整数型
+.参数 new, 文本型
+
+
+
+返回 (0)
+
+.子程序 AppInfo, 文本型, 公开, 返回应用的ApiVer、Appid
+.局部变量 ApiVer, 整数型
+.局部变量 AppID, 文本型
+
+ApiVer ＝ 9  ' Api版本号
+AppID ＝ “com.broncotc.cqsocketapi”  ' AppID，规则见 http://d.cqp.cc/Pro/开发/基础信息
+返回 (到文本 (ApiVer) ＋ “,” ＋ AppID)
+
+.子程序 Initialize, 整数型, 公开, 应用AuthCode接收 //本函数【禁止】处理其他任何代码，请不要改动本函数
+.参数 AuthCode, 整数型
+.局部变量 AuthRet, 整数型
+
+' 酷Q调用 Information函数 获取应用信息后，如果接受该应用，将会调用这个函数并传递AuthCode。
+AuthRet ＝ CQ.其他_置AuthCode (AuthCode)
+.如果真 (AuthRet ≠ 0)
+    返回 (AuthRet)
+.如果真结束
+置错误提示管理 (&CQ_错误提示管理)  ' 将易语言的错误转向酷Q，便于定位错误应用
+' 本函数【禁止】处理其他任何代码，以免发生异常情况。如需执行初始化代码请在Startup事件中执行（Type=1001）。
+返回 (0)  ' 请固定返回0
+
+.子程序 _eventStartup, 整数型, 公开, Type=1001 酷Q启动
+
+' 本子程序会在酷Q【主线程】中被调用。
+' 无论本应用是否被启用，本函数都会在酷Q启动后执行一次，请在这里执行插件初始化代码。
+' 请务必尽快返回本子程序，否则会卡住其他插件以及主程序的加载。
+' 置错误提示管理 (&errorDropper)
+应用目录 ＝ CQ.取应用目录 ()  ' 获取应用数据目录(无需储存数据时，请将此行注释)
+' 返回如：D:\CoolQ\app\com.coxxs.testapp\
+' 应用的所有数据、配置【必须】存放于此目录，避免给用户带来困扰。
+
+
+返回 (0)  ' 请固定返回0
+
+
+.子程序 errorDropper, 逻辑型
+.参数 errorCode, 整数型
+.参数 errorDescription, 文本型
+
+返回 (真)
+
+.子程序 _eventExit, 整数型, 公开, Type=1002 酷Q退出
+
+' 本子程序会在酷Q【主线程】中被调用。
+' 无论本应用是否被启用，本函数都会在酷Q退出前执行一次，请在这里执行插件关闭代码。
+
+
+返回 (0)  ' 请固定返回0，返回后酷Q将很快关闭，请不要再通过线程等方式执行其他代码。
+
+.子程序 _eventEnable, 整数型, 公开, Type=1003 应用已被启用
+.局部变量 threadHandle, 整数型
+
+
+' 当应用被启用后，将收到此事件。
+' 如果酷Q载入时应用已被启用，则在_eventStartup(Type=1001,酷Q启动)被调用后，本函数也将被调用一次。
+' 如非必要，不建议在这里加载窗口。（可以添加菜单，让用户手动打开窗口）
+应用已启用 ＝ 真
+py2ePort ＝ 到数值 (读配置项 (应用目录 ＋ “cqsocketconfig.ini”, “Ports”, “cqlisten”, ))
+e2pyPort ＝ 到数值 (读配置项 (应用目录 ＋ “cqsocketconfig.ini”, “Ports”, “cqsend”, ))
+' socketServer.启动 (py2ePort, &pythonMessageListener, )
+udpServer.配置 (py2ePort)
+启动线程 (&udpPolling, 1, threadHandle)
+返回 (0)  ' 请固定返回0。
+
+
+.子程序 udpPolling, 整数型
+.参数 deadLoopper, 整数型
+.局部变量 receiveSuccess, 逻辑型
+.局部变量 remoteInfo, 对方信息
+.局部变量 receivedInfo, 字节集
+.局部变量 requestParts, 文本型, , "30"
+.局部变量 requestTextData, 文本型
+.局部变量 i, 整数型
+.局部变量 senderName, 文本型
+.局部变量 sentText, 文本型
+
+.判断循环首 (deadLoopper ＝ 1)
+    receivedInfo ＝ udpServer.接收 (-1, remoteInfo, receiveSuccess)
+    .如果真 (receiveSuccess ＝ 真)
+        requestTextData ＝ 到文本 (receivedInfo)
+
+        ' CQ.发送私聊消息 (708994675, 到文本 (receivedInfo))
+
+        .如果真 (取文本长度 (requestTextData) － 取文本长度 (删全部空 (requestTextData)) ＜ 10)
+            requestParts ＝ 分割文本 (requestTextData, “ ”, )
+            ' CQ.发送私聊消息 (708994675, 到文本 (requestParts))
+            .如果真 (requestParts [1] ＝ “group”)
+                sentText ＝ 编码_URL解码 (requestParts [3], 真)
+                CQ.发送群消息 (到数值 (requestParts [2]), sentText)
+            .如果真结束
+            .如果真 (requestParts [1] ＝ “private”)
+                sentText ＝ 编码_URL解码 (requestParts [3], 真)
+                CQ.发送群消息 (到数值 (requestParts [2]), sentText)
+            .如果真结束
+            .如果真 (requestParts [1] ＝ “discuss”)
+                sentText ＝ 编码_URL解码 (requestParts [3], 真)
+                CQ.发送讨论组消息 (到数值 (requestParts [2]), sentText)
+            .如果真结束
+
+        .如果真结束
+
+    .如果真结束
+
+
+.判断循环尾 ()
+返回 (0)
+
+.子程序 _eventDisable, 整数型, 公开, Type=1004 应用将被停用
+
+' 当应用被停)用前，将收到此事件。
+' 如果酷Q载入时应用已被停用，则本函数【不会】被调用。
+' 无论本应用是否被启用，酷Q关闭前本函数都【不会】被调用。
+应用已启用 ＝ 假
+
+
+返回 (0)  ' 请固定返回0。
+
+.子程序 _eventPrivateMsg, 整数型, 公开, Type=21 私聊消息
+.参数 subType, 整数型, , 子类型，11/来自好友 1/来自在线状态 2/来自群 3/来自讨论组
+.参数 sendTime, 整数型, , 发送时间(时间戳)
+.参数 fromQQ, 长整数型, , 来源QQ
+.参数 msg, 文本型, , 消息内容
+.参数 font, 整数型, , 字体
+.局部变量 sendResult, 文本型
+.局部变量 sendContent, 文本型
+
+' 本子程序会在酷Q【线程】中被调用，请注意使用对象等需要初始化(CoInitialize,CoUninitialize)。
+' 这里处理消息
+connectPy.连接 (“127.0.0.1”, e2pyPort)
+sendContent ＝ “private ” ＋ 到文本 (fromQQ) ＋ “ ” ＋ 编码_URL编码 (msg)
+connectPy.发送 (sendContent, -1)
+connectPy.断开 ()
+
+' 返回值*不能*直接返回文本
+' 如果要回复消息，请调用api发送，并且这里 返回(#消息_拦截) - 截断本条消息，不再继续处理 //注意：应用优先级设置为"最高"(10000)时，不得使用本返回值
+' 如果不回复消息，交由之后的应用/过滤器处理，这里 返回(#消息_忽略) - 忽略本条消息
+返回 (#消息_忽略)
+
+.子程序 _eventGroupMsg, 整数型, 公开, Type=2 群消息
+.参数 subType, 整数型, , 子类型，目前固定为1
+.参数 sendTime, 整数型, , 发送时间(时间戳)
+.参数 fromGroup, 长整数型, , 来源群号
+.参数 fromQQ, 长整数型, , 来源QQ号
+.参数 fromAnonymous, 文本型, , 来源匿名者
+.参数 msg, 文本型, , 消息内容
+.参数 font, 整数型, , 字体
+.局部变量 局_匿名, 数_匿名
+.局部变量 sendContent, 文本型
+
+.如果真 (fromQQ ＝ 80000000 且 fromAnonymous ≠ “”)  ' 如果消息来自匿名者
+    CQ.其他_转换_文本到匿名 (fromAnonymous, 局_匿名)  ' 将匿名用户信息放到 局_匿名 变量中
+.如果真结束
+' 本子程序会在酷Q【线程】中被调用，请注意使用对象等需要初始化(CoInitialize,CoUninitialize)。
+' 这里处理消息
+
+' CQ.发送群消息 (fromGroup, CQ.CQ码_At (fromQQ) ＋ “ 你发送了这样的消息：” ＋ msg)
+.如果真 (fromQQ ＝ 80000000 且 fromAnonymous ≠ “”)
+    返回 (#消息_忽略)
+.如果真结束
+connectPy.连接 (“127.0.0.1”, e2pyPort)
+sendContent ＝ “group ” ＋ 到文本 (fromGroup) ＋ “ ” ＋ 到文本 (fromQQ) ＋ “ ” ＋ 编码_URL编码 (msg)
+
+connectPy.发送 (sendContent, -1)
+connectPy.断开 ()
+
+返回 (#消息_忽略)  ' 关于返回值说明, 见“_eventFriendMsg”子程序
+
+.子程序 _eventDiscussMsg, 整数型, 公开, Type=4 讨论组消息
+.参数 subtype, 整数型, , 子类型，目前固定为1
+.参数 sendTime, 整数型, , 发送时间(时间戳)
+.参数 fromDiscuss, 长整数型, , 来源讨论组
+.参数 fromQQ, 长整数型, , 来源QQ号
+.参数 msg, 文本型, , 消息内容
+.参数 font, 整数型, , 字体
+.局部变量 sendContent, 文本型
+
+' 本子程序会在酷Q【线程】中被调用，请注意使用对象等需要初始化(CoInitialize,CoUninitialize)。
+' 这里处理消息
+connectPy.连接 (“127.0.0.1”, e2pyPort)
+sendContent ＝ “discuss ” ＋ 到文本 (fromDiscuss) ＋ “ ” ＋ 到文本 (fromQQ) ＋ “ ” ＋ 编码_URL编码 (msg)
+
+connectPy.发送 (sendContent, -1)
+
+connectPy.断开 ()
+
+
+返回 (#消息_忽略)  ' 关于返回值说明, 见“_eventFriendMsg”子程序
+
+.子程序 _eventGroupUpload, 整数型, 公开, Type=11 群文件上传事件
+.参数 subType, 整数型, , 子类型，目前固定为1
+.参数 sendTime, 整数型, , 发送时间(时间戳)
+.参数 fromGroup, 长整数型, , 来源群号
+.参数 fromQQ, 长整数型, , 来源QQ号
+.参数 file, 文本型, , 上传文件信息
+.局部变量 局_文件, 数_群文件
+
+' 本子程序会在酷Q【线程】中被调用，请注意使用对象等需要初始化(CoInitialize,CoUninitialize)。
+.如果真 (CQ.其他_转换_文本到群文件 (file, 局_文件) ＝ 假)  ' 解析群文件信息，如果失败直接忽略该消息
+    返回 (#消息_忽略)
+.如果真结束
+' 这里处理消息
+
+
+返回 (#消息_忽略)  ' 关于返回值说明, 见“_eventFriendMsg”子程序
+
+.子程序 _eventSystem_GroupAdmin, 整数型, 公开, Type=101 群事件-管理员变动
+.参数 subtype, 整数型, , 子类型，1/被取消管理员 2/被设置管理员
+.参数 sendTime, 整数型, , 发送时间(时间戳)
+.参数 fromGroup, 长整数型, , 来源群号
+.参数 beingOperateQQ, 长整数型, , 被操作QQ
+
+' 本子程序会在酷Q【线程】中被调用，请注意使用对象等需要初始化(CoInitialize,CoUninitialize)。
+' 这里处理消息
+
+
+返回 (#消息_忽略)  ' 关于返回值说明, 见“_eventFriendMsg”子程序
+
+.子程序 _eventSystem_GroupMemberDecrease, 整数型, 公开, Type=102 群事件-群成员减少
+.参数 subtype, 整数型, , 子类型，1/群员离开 2/群员被踢 3/自己(即登录号)被踢
+.参数 sendTime, 整数型, , 发送时间(时间戳)
+.参数 fromGroup, 长整数型, , 来源群号
+.参数 fromQQ, 长整数型, , 操作者QQ(仅子类型为2、3时存在)
+.参数 beingOperateQQ, 长整数型, , 被操作QQ
+
+' 本子程序会在酷Q【线程】中被调用，请注意使用对象等需要初始化(CoInitialize,CoUninitialize)。
+' 这里处理消息
+
+
+返回 (#消息_忽略)  ' 关于返回值说明, 见“_eventFriendMsg”子程序
+
+.子程序 _eventSystem_GroupMemberIncrease, 整数型, 公开, Type=103 群事件-群成员增加
+.参数 subtype, 整数型, , 子类型，1/管理员已同意 2/管理员邀请
+.参数 sendTime, 整数型, , 发送时间(时间戳)
+.参数 fromGroup, 长整数型, , 来源群号
+.参数 fromQQ, 长整数型, , 操作者QQ(即管理员QQ)
+.参数 beingOperateQQ, 长整数型, , 被操作QQ(即加群的QQ)
+
+' 本子程序会在酷Q【线程】中被调用，请注意使用对象等需要初始化(CoInitialize,CoUninitialize)。
+' 这里处理消息
+
+
+返回 (#消息_忽略)  ' 关于返回值说明, 见“_eventFriendMsg”子程序
+
+.子程序 _eventFriend_Add, 整数型, 公开, Type=201 好友事件-好友已添加
+.参数 subtype, 整数型, , 子类型，目前固定为1
+.参数 sendTime, 整数型, , 发送时间(时间戳)
+.参数 fromQQ, 长整数型, , 来源QQ
+
+' 本子程序会在酷Q【线程】中被调用，请注意使用对象等需要初始化(CoInitialize,CoUninitialize)。
+' 这里处理消息
+
+返回 (#消息_忽略)  ' 关于返回值说明, 见“_eventFriendMsg”子程序
+
+.子程序 _eventRequest_AddFriend, 整数型, 公开, Type=301 请求-好友添加
+.参数 subtype, 整数型, , 子类型，目前固定为1
+.参数 sendTime, 整数型, , 发送时间(时间戳)
+.参数 fromQQ, 长整数型, , 来源QQ
+.参数 msg, 文本型, , 附言
+.参数 responseFlag, 文本型, , 反馈标识(处理请求用)
+
+' 本子程序会在酷Q【线程】中被调用，请注意使用对象等需要初始化(CoInitialize,CoUninitialize)。
+' 这里处理消息
+
+' CQ.置好友添加请求 (responseFlag, #请求_通过)
+返回 (#消息_忽略)  ' 关于返回值说明, 见“_eventFriendMsg”子程序
+
+.子程序 _eventRequest_AddGroup, 整数型, 公开, Type=302 请求-群添加
+.参数 subtype, 整数型, , 子类型，1/他人申请入群 2/自己(即登录号)受邀入群
+.参数 sendTime, 整数型, , 发送时间(时间戳)
+.参数 fromGroup, 长整数型, , 来源群号
+.参数 fromQQ, 长整数型, , 来源QQ
+.参数 msg, 文本型, , 附言
+.参数 responseFlag, 文本型, , 反馈标识(处理请求用)
+
+' 本子程序会在酷Q【线程】中被调用，请注意使用对象等需要初始化(CoInitialize,CoUninitialize)。
+' 这里处理消息
+
+.判断开始断 (subtype ＝ 1)
+    ' CQ.置群添加请求 (responseFlag, #请求_群添加, #请求_通过)
+.' 判断 (subtype ＝ 2)
+    ' CQ.置群添加请求 (responseFlag, #请求_群邀请, #请求_通过)
+.默认
+
+.判断结束
+
+返回 (#消息_忽略)  ' 关于返回值说明, 见“_eventFriendMsg”子程序
+
+.子程序 _menuA, 整数型, 公开
+
+' 本子程序会在酷Q【主线程】中被调用。
+信息框 (“这是menuA，在这里载入窗口，或者进行其他工作。”, 0, )
+返回 (0)
+
+.子程序 _menuB, 整数型, 公开
+
+' 本子程序会在酷Q【主线程】中被调用。
+信息框 (“这是menuB，在这里载入窗口，或者进行其他工作。”, 0, )
+
+返回 (0)
+
+
+
+.子程序 文本到字节集型文本, 文本型, 公开
+.参数 要转换的文本, 文本型
+.局部变量 字节集变量, 字节集
+.局部变量 循环次数, 整数型
+.局部变量 字节型变量, 字节集
+.局部变量 要输出的文本, 文本型
+.局部变量 文本数据, 文本型
+
+文本数据 ＝ 要转换的文本
+字节集变量 ＝ 到字节集 (文本数据)
+.计次循环首 (取字节集长度 (字节集变量), 循环次数)
+    字节型变量 ＝ 取字节集中间 (字节集变量, 循环次数, 1)
+    .如果 (循环次数 ＜ 取字节集长度 (字节集变量))
+        要输出的文本 ＝ 要输出的文本 ＋ 到文本 (取字节集数据 (字节型变量, #字节型, )) ＋ “,”
+    .否则
+        要输出的文本 ＝ 要输出的文本 ＋ 到文本 (取字节集数据 (字节型变量, #字节型, ))
+    .如果结束
+
+.计次循环尾 ()
+返回 (要输出的文本)
+
+' 以下为全局变量表
+
+.版本 2
+.支持库 sock
+
+.全局变量 应用目录, 文本型
+.全局变量 应用已启用, 逻辑型
+.全局变量 py2ePort, 整数型
+.全局变量 e2pyPort, 整数型
+.全局变量 connectPy, 网络客户端
+.全局变量 udpServer, 网络数据报
+
